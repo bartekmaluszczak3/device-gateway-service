@@ -1,6 +1,7 @@
 package com.example.device.gateway.web;
 
 import com.example.device.gateway.Application;
+import com.example.device.gateway.kafka.KafkaConsumer;
 import com.example.device.gateway.service.MqttTelemetryListener;
 import lombok.SneakyThrows;
 import org.eclipse.paho.client.mqttv3.MqttClient;
@@ -42,16 +43,11 @@ class MqttTelemetryListenerTest {
             .withCommand("/usr/sbin/mosquitto -c /mosquitto-no-auth.conf")
             .waitingFor(Wait.forLogMessage(".*mosquitto version.*running.*\\n", 1));
 
-    private static final BlockingQueue<String> receivedMessages = new LinkedBlockingQueue<>();
-
-    @KafkaListener(topics = "telemetry.raw", groupId = "test-group")
-    public void consume(String message) {
-        receivedMessages.add(message);
-    }
-
     @Autowired
     private MqttTelemetryListener mqttListener;
 
+    @Autowired
+    private KafkaConsumer kafkaConsumer;
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
@@ -73,8 +69,8 @@ class MqttTelemetryListenerTest {
         publisher.publish(topic, new MqttMessage(payload.getBytes()));
         publisher.disconnect();
 
-        await().atMost(5, TimeUnit.SECONDS).until(() -> !receivedMessages.isEmpty());
-        String message = receivedMessages.poll();
+        await().atMost(5, TimeUnit.SECONDS).until(() -> !kafkaConsumer.queueIsEmpty());
+        String message = kafkaConsumer.getLastMessage();
         assertThat(message).isNotNull().contains("25.3");
     }
 }

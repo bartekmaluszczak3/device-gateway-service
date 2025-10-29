@@ -1,5 +1,6 @@
 package com.example.device.gateway.service;
 
+import com.example.device.gateway.constants.TopicConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
@@ -14,7 +15,6 @@ public class MqttCallBackExtend implements MqttCallbackExtended {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-
     @Override
     public void connectComplete(boolean b, String serverUrl) {
         log.info("Connected to MQTT broker {} ", serverUrl);
@@ -26,13 +26,13 @@ public class MqttCallBackExtend implements MqttCallbackExtended {
     }
 
     @Override
-    public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
+    public void messageArrived(String topic, MqttMessage mqttMessage){
         log.info("Received telemetry from topic " + topic);
         String payload = new String(mqttMessage.getPayload());
         log.debug("Payload {}", payload);
         String[] parts = topic.split("/");
         String deviceId = parts[2];
-        kafkaTemplate.send("telemetry.raw", deviceId, payload);
+        kafkaTemplate.send(TopicConstants.TELEMETRY_TOPIC, deviceId, payload);
     }
 
     @Override
