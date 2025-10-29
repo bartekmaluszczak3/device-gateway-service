@@ -1,0 +1,15 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+service:
+  mqtt:
+    broker-url: tcp://localhost:1883
+    client-id: test-client
+    topic-filter: iot/+/telemetry
+    keystore: ""
+    keystore-password: ""
+    truststore: ""
+    truststore-password: ""
