@@ -1,0 +1,121 @@
+# CA
+"keytool" -genkeypair ^
+  -alias ca ^
+  -keyalg RSA ^
+  -keysize 2048 ^
+  -sigalg SHA256withRSA ^
+  -validity 365 ^
+  -dname "CN=Test Root CA, OU=Security, O=Example, L=Warsaw, ST=Mazovia, C=PL" ^
+  -ext "BasicConstraints:critical=ca:true,pathLen:0" ^
+  -ext "KeyUsage:critical=keyCertSign,cRLSign" ^
+  -storetype PKCS12 ^
+  -keystore ca.p12 ^
+  -storepass capassword ^
+  -keypass capassword
+
+"keytool" -exportcert ^
+  -alias ca ^
+  -storetype PKCS12 ^
+  -keystore "ca.p12" ^
+  -storepass "capassword" ^
+  -rfc ^
+  -file "ca.crt"
+
+"keytool" -genkeypair ^
+    -alias server ^
+    -keyalg RSA ^
+    -keysize 2048 ^
+    -sigalg SHA256withRSA ^
+    -validity 365 ^
+    -dname "CN=localhost, OU=Backend, O=Example, L=Warsaw, ST=Mazovia, C=PL" ^
+    -storetype PKCS12 ^
+    -keystore "server.p12" ^
+    -storepass "serverpass" ^
+    -keypass "serverpass"
+
+"keytool" -certreq ^
+  -alias server ^
+  -keystore "server.p12" ^
+  -storepass "serverpass" ^
+  -file "server.csr"
+
+"keytool" -gencert ^
+  -alias ca ^
+  -keystore "ca.p12" ^
+  -storepass "capassword" ^
+  -infile "server.csr" ^
+  -outfile "server.crt" ^
+  -validity 365 ^
+  -sigalg SHA256withRSA ^
+  -ext "BasicConstraints:critical=ca:false" ^
+  -ext "KeyUsage:critical=digitalSignature,keyEncipherment" ^
+  -ext "ExtendedKeyUsage=serverAuth" ^
+  -ext "SAN=dns:localhost,ip:127.0.0.1" ^
+  -rfc
+
+"keytool" -importcert ^
+  -alias ca ^
+  -keystore "server.p12" ^
+  -storepass "serverpass" ^
+  -file "ca.crt" ^
+  -noprompt
+
+"keytool" -importcert ^
+  -alias server ^
+  -keystore "server.p12" ^
+  -storepass "serverpass" ^
+  -file "server.crt" ^
+  -noprompt
+
+"keytool" -genkeypair ^
+  -alias client ^
+  -keyalg RSA ^
+  -keysize 2048 ^
+  -sigalg SHA256withRSA ^
+  -validity 365 ^
+  -dname "CN=trusted-client, OU=Client, O=Example, L=Warsaw, ST=Mazovia, C=PL" ^
+  -storetype PKCS12 ^
+  -keystore "client.p12" ^
+  -storepass "clientpass" ^
+  -keypass "clientpass"
+
+"keytool" -certreq ^
+  -alias client ^
+  -keystore "client.p12" ^
+  -storepass "clientpass" ^
+  -file "client.csr"
+
+"keytool" -gencert ^
+  -alias ca ^
+  -keystore "ca.p12" ^
+  -storepass "capassword" ^
+  -infile "client.csr" ^
+  -outfile "client.crt" ^
+  -validity 365 ^
+  -sigalg SHA256withRSA ^
+  -ext "BasicConstraints:critical=ca:false" ^
+  -ext "KeyUsage:critical=digitalSignature" ^
+  -ext "ExtendedKeyUsage=clientAuth" ^
+  -rfc
+
+"keytool" -importcert ^
+  -alias ca ^
+  -keystore "client.p12" ^
+  -storepass "clientpass" ^
+  -file "ca.crt" ^
+  -noprompt
+
+"keytool" -importcert ^
+  -alias client ^
+  -keystore "client.p12" ^
+  -storepass "clientpass" ^
+  -file "client.crt" ^
+  -noprompt
+
+"keytool" -importcert ^
+  -alias ca ^
+  -keystore "truststore.p12" ^
+  -storetype PKCS12 ^
+  -storepass "trustpass" ^
+  -file "ca.crt" ^
+  -noprompt

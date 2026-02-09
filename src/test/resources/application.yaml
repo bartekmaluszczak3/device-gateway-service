@@ -1,0 +1,25 @@
+server:
+  port: 8443
+  ssl:
+    # --- Keystore serwera (certyfikat + klucz prywatny serwera) ---
+    enabled: true
+    key-store: classpath:keystore/server.p12
+    key-store-password: serverpass
+    key-store-type: PKCS12
+    key-alias: server
+
+    # --- Truststore serwera (CA, któremu serwer ufa – weryfikuje klientów) ---
+    trust-store: classpath:keystore/truststore.p12
+    trust-store-password: trustpass
+    trust-store-type: PKCS12
+    client-auth: need
+
+  # Protokół i zestawy szyfrów (opcjonalnie, dla większej kontroli)
+  ssl-protocol: TLS
+  # enabled-protocols: TLSv1.3,TLSv1.2
+
+spring:
+  security:
+    user:
+      name: ignored   # Security wyłączone – patrz SecurityConfig
+      password: ignored
