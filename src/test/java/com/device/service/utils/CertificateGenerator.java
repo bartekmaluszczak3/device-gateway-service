@@ -1,4 +1,4 @@
-package utils;
+package com.device.service.utils;
 
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.*;
@@ -135,6 +135,11 @@ public class CertificateGenerator {
 
         ks.setKeyEntry(alias, certAndKey.privateKey(), password, fullChain);
         return ks;
+    }
+
+    public static KeyStore buildKeyStore(String alias, CertAndKey certAndKey,
+                                         X509Certificate... chain) throws Exception {
+        return buildKeyStore(alias, "test".toCharArray(), certAndKey, chain);
     }
 
     public static KeyStore buildTrustStore(char[] password,

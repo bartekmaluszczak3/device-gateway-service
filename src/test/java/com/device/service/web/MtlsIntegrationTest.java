@@ -1,10 +1,10 @@
+package com.device.service.web;
 
 import com.device.service.Application;
 import lombok.SneakyThrows;
 import org.apache.coyote.http11.Http11NioProtocol;
 import org.apache.tomcat.util.net.SSLHostConfig;
 import org.apache.tomcat.util.net.SSLHostConfigCertificate;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -13,8 +13,8 @@ import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import utils.CertificateGenerator;
-import utils.CertificateGenerator.CertAndKey;
+import com.device.service.utils.CertificateGenerator;
+import com.device.service.utils.CertificateGenerator.CertAndKey;
 
 import javax.net.ssl.*;
 import java.net.URI;
