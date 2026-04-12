@@ -1,4 +1,4 @@
-package com.device.service;
+package com.device.service.exeption;
 
 import org.springframework.http.HttpStatus;
 

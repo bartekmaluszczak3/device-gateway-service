@@ -1,6 +1,6 @@
 package com.device.service.service;
 
-import com.device.service.WellKnownException;
+import com.device.service.exeption.WellKnownException;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.cert.jcajce.JcaCertStore;
 import org.bouncycastle.cms.CMSProcessableByteArray;
