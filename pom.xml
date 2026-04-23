@@ -13,6 +13,8 @@
         <maven.compiler.target>17</maven.compiler.target>
         <spring.boot.version>3.1.4</spring.boot.version>
         <bouncycastle.version>1.77</bouncycastle.version>
+        <testcontainers.version>1.19.7</testcontainers.version>
+
     </properties>
 
     <parent>
@@ -61,5 +63,35 @@
             <artifactId>bcpkix-jdk18on</artifactId>
             <version>${bouncycastle.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+
     </dependencies>
 </project>

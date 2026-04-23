@@ -1,5 +1,6 @@
 package com.device.service.web;
 
+import com.device.service.service.EventService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,11 @@ import java.util.Map;
 @Slf4j
 public class DeviceController {
 
+    private final EventService eventService;
+    public DeviceController(EventService eventService) {
+        this.eventService = eventService;
+    }
+
     @PostMapping("/data")
     public ResponseEntity<Void> receiveData(@RequestBody Map<String, Object> payload, HttpServletRequest request){
         X509Certificate certificate = extract(request);
@@ -24,7 +30,7 @@ public class DeviceController {
             log.error("A request without a client certificate reached the controller");
             return ResponseEntity.status(401).build();
         }
-        System.out.println(payload);
+        eventService.sendDataReceivedEvent(certificate, payload);
         return ResponseEntity.status(204).build();
     }
 

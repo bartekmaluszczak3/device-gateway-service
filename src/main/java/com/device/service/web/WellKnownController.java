@@ -41,12 +41,12 @@ public class WellKnownController {
     public ResponseEntity<String> enroll(@RequestBody String csrBase64, HttpServletRequest request){
         X509Certificate bootstrapCert = extractClientCert(request);
         if (bootstrapCert == null) {
-            log.warn("simpleenroll: brak certyfikatu klienta");
+            log.error("No client Certificate");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         String deviceId = extractCN(bootstrapCert);
-        log.info("Requested enroll for  `CN={}", deviceId);
+        log.info("Requested enroll for CN={}", deviceId);
 
         try {
             String signed = wellKnownService.enroll(csrBase64.trim(), bootstrapCert);

@@ -1,11 +1,14 @@
 package com.device.service.web;
 
+import com.device.service.kafka.event.DataReceivedEvent;
 import com.device.service.service.CaService;
 import com.device.service.utils.CertificateGenerator;
+import com.device.service.utils.KafkaTestConsumer;
 import lombok.SneakyThrows;
 import org.apache.coyote.http11.Http11NioProtocol;
 import org.apache.tomcat.util.net.SSLHostConfig;
 import org.apache.tomcat.util.net.SSLHostConfigCertificate;
+import org.assertj.core.api.Assertions;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.*;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -26,31 +29,31 @@ import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactor
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
-import java.math.BigInteger;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.KeyStore;
-import java.security.PublicKey;
 import java.security.Security;
-import java.security.cert.X509Certificate;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Date;
+import java.time.Duration;
+import java.util.List;
 
 import static com.device.service.utils.CertificateGenerator.*;
-import static com.device.service.web.WellKnownTest.SERIAL;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(DeviceControllerTest.InMemorySslConfig.class)
+@Testcontainers
 public class DeviceControllerTest {
 
     @LocalServerPort
@@ -61,6 +64,7 @@ public class DeviceControllerTest {
 
     static CertAndKey ROOT_CA;
     static CertAndKey ENROLLED_DEVICE_CERT;
+    private static final String TOPIC = "device-data-events";
 
     static {
         try {
@@ -73,28 +77,78 @@ public class DeviceControllerTest {
             e.printStackTrace();
         }
     }
+    private KafkaTestConsumer kafkaConsumer;
+
+    @Container
+    static final KafkaContainer kafka = new KafkaContainer(
+            DockerImageName.parse("confluentinc/cp-kafka:7.6.0")
+    );
+
+    @DynamicPropertySource
+    static void kafkaProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+    }
+
 
     @SneakyThrows
     @BeforeEach
     void beforeEach(){
-        when(caService.getCaCert()).thenReturn(ROOT_CA.cert());
-        when(caService.signCsr(any())).thenAnswer(inv ->
-                signWithInMemoryCa(inv.getArgument(0)));
+        kafkaConsumer = new KafkaTestConsumer(kafka.getBootstrapServers());
+
     }
 
     @SneakyThrows
     @Test
     void shouldAcceptDataWhenCertIsPresent(){
+        // given
         String payload = """
                 {
                     "temperature": 23.5,
                     "pressure": 1.03
                 }
                 """;
+
+        // when
         HttpResponse<String> resp = buildMtlsClient(ENROLLED_DEVICE_CERT).send(
                 postJson("/api/devices/data", payload),
                 HttpResponse.BodyHandlers.ofString()
         );
+
+        // then
+        Assertions.assertThat(resp.statusCode()).isEqualTo(204);
+
+        // and
+        List<DataReceivedEvent> events = kafkaConsumer.consumeEvents(TOPIC, Duration.ofSeconds(2), DataReceivedEvent.class);
+        Assertions.assertThat(events.size()).isEqualTo(1);
+        var event = events.get(0);
+        Assertions.assertThat(event.getDeviceId()).isEqualTo("device-001");
+        Assertions.assertThat(event.getPayload()).containsKey("temperature");
+        Assertions.assertThat(event.getPayload()).containsKey("pressure");
+    }
+
+    @SneakyThrows
+    @Test
+    void everyRequestGenerateNewEvent(){
+        // given
+        String payload = """
+                {
+                    "temperature": 23.5,
+                    "pressure": 1.03
+                }
+                """;
+        var client = buildMtlsClient(ENROLLED_DEVICE_CERT);
+
+        // when
+        client.send(postJson("/api/devices/data", payload), HttpResponse.BodyHandlers.ofString());
+        client.send(postJson("/api/devices/data", payload), HttpResponse.BodyHandlers.ofString());
+
+        // then
+        List<DataReceivedEvent> events = kafkaConsumer.consumeEvents(TOPIC, Duration.ofSeconds(2), DataReceivedEvent.class);
+        Assertions.assertThat(events.size()).isEqualTo(2);
+        var firstEvent = events.get(0);
+        Assertions.assertThat(firstEvent.getDeviceId()).isEqualTo("device-001");
+        Assertions.assertThat(firstEvent.getPayload()).containsKey("temperature");
+        Assertions.assertThat(firstEvent.getPayload()).containsKey("pressure");
     }
 
     @Test
@@ -105,43 +159,6 @@ public class DeviceControllerTest {
                         HttpResponse.BodyHandlers.ofString()
                 )
         );
-    }
-
-    private X509Certificate signWithInMemoryCa(PKCS10CertificationRequest csr) throws Exception {
-        X500Name issuer = X500Name.getInstance(ROOT_CA.cert().getSubjectX500Principal().getEncoded());
-        Instant now = Instant.now();
-
-        X509v3CertificateBuilder builder = new X509v3CertificateBuilder(
-                issuer,
-                BigInteger.valueOf(SERIAL.incrementAndGet()),
-                Date.from(now),
-                Date.from(now.plus(1, ChronoUnit.DAYS)),
-                csr.getSubject(),
-                csr.getSubjectPublicKeyInfo()
-        );
-
-
-
-        JcaX509ExtensionUtils ext = new JcaX509ExtensionUtils();
-        PublicKey subjKey  = BouncyCastleProvider.getPublicKey(csr.getSubjectPublicKeyInfo());
-
-        builder.addExtension(Extension.basicConstraints, false, new BasicConstraints(false));
-        builder.addExtension(Extension.keyUsage, true,
-                new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment));
-        builder.addExtension(Extension.extendedKeyUsage, false,
-                new ExtendedKeyUsage(KeyPurposeId.id_kp_clientAuth));
-        builder.addExtension(Extension.subjectKeyIdentifier, false,
-                ext.createSubjectKeyIdentifier(subjKey));
-        builder.addExtension(Extension.authorityKeyIdentifier, false,
-                ext.createAuthorityKeyIdentifier(ROOT_CA.cert().getPublicKey()));
-
-        ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")
-                .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-                .build(ROOT_CA.privateKey());
-
-        return new JcaX509CertificateConverter()
-                .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-                .getCertificate(builder.build(signer));
     }
 
     private HttpClient buildTlsOnlyClient() throws Exception {
