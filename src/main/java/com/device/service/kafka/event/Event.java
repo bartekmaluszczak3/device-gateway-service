@@ -5,12 +5,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.time.Instant;
+
 @Data
 @SuperBuilder
 @AllArgsConstructor
 @NoArgsConstructor
 public abstract class Event {
     private String eventId;
-    private String eventType;
+    private Instant occurredAt;
+    private EventType eventType;
     private String deviceId;
 }

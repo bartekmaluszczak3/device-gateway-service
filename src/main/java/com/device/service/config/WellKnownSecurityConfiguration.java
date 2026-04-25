@@ -10,7 +10,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @Order(1)
-public class WellKnownSecurityConfig {
+public class WellKnownSecurityConfiguration {
     @Bean
     public SecurityFilterChain estSecurityFilterChain(HttpSecurity http) throws Exception {
         http

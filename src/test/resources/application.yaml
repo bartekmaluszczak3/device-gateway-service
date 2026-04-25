@@ -32,4 +32,5 @@ spring:
 
 kafka:
   topics:
-    device-data: device-data-events
+    DATA_RECEIVED_EVENT: device-data-received
+    DEVICE_ENROLLED_EVENT: device-enrolled

@@ -1,6 +1,7 @@
 package com.device.service.web;
 
 import com.device.service.exeption.WellKnownException;
+import com.device.service.service.EventService;
 import com.device.service.service.WellKnownService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -19,9 +20,11 @@ public class WellKnownController {
     private static final String MIME_PKCS10 = "application/pkcs10";
 
     private final WellKnownService wellKnownService;
+    private final EventService eventService;
 
-    public WellKnownController(WellKnownService wellKnownService) {
+    public WellKnownController(WellKnownService wellKnownService, EventService eventService) {
         this.wellKnownService = wellKnownService;
+        this.eventService = eventService;
     }
 
     @GetMapping(value = "/cacerts", produces = MIME_PKCS7)
@@ -51,6 +54,7 @@ public class WellKnownController {
         try {
             String signed = wellKnownService.enroll(csrBase64.trim(), bootstrapCert);
             log.info("Certificate issued for CN = {}", deviceId);
+            eventService.sendDeviceEnrolledEvent(bootstrapCert);
             return ResponseEntity.ok()
                     .header("Content-Transfer-Encoding", "base64")
                     .contentType(MediaType.parseMediaType(MIME_PKCS7))

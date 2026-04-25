@@ -3,11 +3,8 @@ package com.device.service.kafka.event;
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.jackson.Jacksonized;
-import java.util.Map;
 
 @SuperBuilder
 @Jacksonized
 @Getter
-public class DataReceivedEvent extends Event {
-    private Map<String, Object> payload;
-}
+public class DeviceEnrolledEvent extends Event { }

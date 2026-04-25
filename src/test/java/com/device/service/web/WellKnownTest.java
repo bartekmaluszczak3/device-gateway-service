@@ -1,8 +1,10 @@
 package com.device.service.web;
 
 import com.device.service.Application;
+import com.device.service.kafka.event.DeviceEnrolledEvent;
 import com.device.service.service.CaService;
 import com.device.service.utils.CertificateGenerator;
+import com.device.service.utils.KafkaTestConsumer;
 import lombok.SneakyThrows;
 import org.apache.coyote.http11.Http11NioProtocol;
 import org.apache.tomcat.util.net.SSLHostConfig;
@@ -28,6 +30,12 @@ import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactor
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -42,10 +50,12 @@ import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -53,12 +63,14 @@ import static org.mockito.Mockito.when;
 
 @Import({WellKnownTest.InMemorySslConfig.class})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = Application.class)
+@Testcontainers
 public class WellKnownTest {
 
     static CertificateGenerator.CertAndKey ROOT_CA;
     static CertificateGenerator.CertAndKey BOOTSTRAP_CERT;
     static CertificateGenerator.CertAndKey OPERATIONAL_CERT;
     static final AtomicLong SERIAL = new AtomicLong(System.currentTimeMillis());
+    private static final String TOPIC = "device-enrolled";
 
     static {
         try {
@@ -76,6 +88,18 @@ public class WellKnownTest {
     @MockBean
     private CaService caService;
 
+    private KafkaTestConsumer kafkaConsumer;
+
+    @Container
+    static final KafkaContainer kafka = new KafkaContainer(
+            DockerImageName.parse("confluentinc/cp-kafka:7.6.0")
+    );
+
+    @DynamicPropertySource
+    static void kafkaProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+    }
+
     @BeforeEach
     @SneakyThrows
     void beforeEach(){
@@ -84,6 +108,8 @@ public class WellKnownTest {
             PKCS10CertificationRequest csr = invocation.getArgument(0);
             return signWithInMemoryCa(csr);
         });
+        kafkaConsumer = new KafkaTestConsumer(kafka.getBootstrapServers());
+
     }
 
     private X509Certificate signWithInMemoryCa(PKCS10CertificationRequest csr) throws Exception {
@@ -191,6 +217,11 @@ public class WellKnownTest {
 
         // then
         Assertions.assertEquals(200, resp.statusCode());
+
+        // and
+        List<DeviceEnrolledEvent> events = kafkaConsumer.consumeEvents(TOPIC, Duration.ofSeconds(2), DeviceEnrolledEvent.class);
+        Assertions.assertEquals(1, events.size());
+        Assertions.assertEquals("device-001-bootstrap", events.get(0).getDeviceId());
     }
 
     @Test

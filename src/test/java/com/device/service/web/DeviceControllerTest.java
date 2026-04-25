@@ -59,12 +59,9 @@ public class DeviceControllerTest {
     @LocalServerPort
     private int port;
 
-    @MockBean
-    private CaService caService;
-
     static CertAndKey ROOT_CA;
     static CertAndKey ENROLLED_DEVICE_CERT;
-    private static final String TOPIC = "device-data-events";
+    private static final String TOPIC = "device-data-received";
 
     static {
         try {
